@@ -1,0 +1,4 @@
+inventory-manager-frontend/node_modules
+inventory-manager-backend/__pycache__
+inventory-manager-backend/.venv
+inventory-manager-backend/src/__pycache__
