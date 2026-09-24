@@ -8,5 +8,9 @@ app = FastAPI()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 @app.get("/health")
-async def health(token: Annotated[str, Depends(oauth2_scheme)]):
+async def health():
+    return {"status": "healthy"}
+
+@app.get("/login")
+async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
     return {"token": token}
