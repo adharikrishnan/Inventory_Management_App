@@ -1,4 +1,57 @@
 inventory-manager-frontend/node_modules
 inventory-manager-backend/__pycache__
 inventory-manager-backend/.venv
-inventory-manager-backend/src/__pycache__
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+### Python Core ###
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+pip-log.txt
+pip-delete-this-directory.txt
+
+### FastAPI / Environment Secrets ###
+.env
+.env.*
+!.env.example
+*.log
+
+### VS Code Specific ###
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+.history/
+
+### Testing, Formatting & Linting Caches ###
+.pytest_cache/
+.htmlcov/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+.mypy_cache/
+.ruff_cache/
+.black
+
+### Databases (SQLite default) ###
+*.db
+*.sqlite3
+
+### Operating System ###
+.DS_Store
+Thumbs.db
