@@ -48,10 +48,3 @@ async def login(
 async def get_user_count(user_service: UserService = Depends(UserService)):
     count = await user_service.get_user_count()
     return {"user_count": count}
-
-@app.post("/hash-password")
-async def hash_password(
-    password: str = Body(..., embed=True),
-    auth_service: AuthService = Depends(AuthService),
-) -> str:
-    return await auth_service.hash_password(password)
