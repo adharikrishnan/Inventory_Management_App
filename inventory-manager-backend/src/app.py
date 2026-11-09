@@ -1,50 +1,56 @@
-from contextlib import asynccontextmanager
-from fastapi import Body, Depends, FastAPI, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
-from mock.mock_data import setup_local_database
+import logging
+from fastapi import Depends, FastAPI, HTTPException, Response, status
 from settings.settings import get_settings
 from service.user_service import UserService
 from service.auth_service import AuthService
-from models.user import UserLogin, TokenResponse
+from models.user import UserLogin
+from dependencies import check_auth, lifespan
+from middleware import setup_cors
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    settings = get_settings()
-    if settings.ENVIRONMENT == "development":
-        try:
-            await setup_local_database()
-        except Exception as e:
-            print(f"Could not connect to database during startup: {e}")
-            raise e
-    yield
+_settings = get_settings()
+    
+app = FastAPI(
+    lifespan=lifespan,
+    debug=_settings.DEBUG.lower() == "true",
+    title="Inventory Manager API",
+    version="1.0.0",
+)
 
-app = FastAPI(lifespan=lifespan)
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+setup_cors(app, _settings)
     
 @app.get("/health")
 async def health():
     return {"status": "healthy"}
 
-@app.post("/login", response_model=TokenResponse)
+@app.post("/login")
 async def login(
     request: UserLogin,
-    auth_service: AuthService = Depends(AuthService),
+    response: Response,
+    auth_service: AuthService = Depends(AuthService)
 ):
-    result = await auth_service.login_user(request.username, request.password)
+    logger = logging.getLogger("uvicorn.error")
+    try:
+        result = await auth_service.login_user(request.username, request.password)
+    except Exception as e:
+        logger.exception("Error during login")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error",
+        ) from e
+       
     if not result:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid username or password",
         )
+
     access_token, refresh_token = result
-    return TokenResponse(
-        access_token=access_token,
-        refresh_token=refresh_token,
-        token_type="bearer",
-    )
+    auth_service.set_cookies(response, access_token, refresh_token)
+    return { "message": "Login successful" }
+
 
 @app.get("/users/count")
-async def get_user_count(user_service: UserService = Depends(UserService)):
+async def get_user_count(current_user: dict = Depends(check_auth),
+                        user_service: UserService = Depends(UserService)):
     count = await user_service.get_user_count()
     return {"user_count": count}

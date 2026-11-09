@@ -1,5 +1,6 @@
 import { type SyntheticEvent, useState } from "react";
 import { LoginService } from "../services/login-service";
+import { UserService } from "../services/user-servce";
 
 export function Login() {
 
@@ -12,8 +13,11 @@ export function Login() {
 
     if (result) {
       // Handle successful login
+      const userCount = await UserService.getUserCount();
+      alert(`Login Successful! User count: ${userCount}`);
     } else {
       // Handle login failure
+      alert("Login failed!");
     }
   }
 

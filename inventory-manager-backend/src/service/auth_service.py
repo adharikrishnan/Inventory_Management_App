@@ -3,7 +3,7 @@ import asyncio
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 import jwt
-from fastapi import Depends
+from fastapi import Depends, HTTPException, Response
 from repository.user_repository import UserRepository
 from schema.user import RefreshToken, User
 from settings.settings import Settings, get_settings
@@ -21,7 +21,7 @@ class AuthService:
                 
     async def login_user(self, username: str, password: str) -> Optional[tuple[str, str]]:
         user = await self.user_repo.get_user(username)
-        if user and await self.verify_password(password, user.hashed_password):
+        if user and await self.verify_password(password, user.password_hash):
             return await self.generate_tokens_for_user(user)
         return None
         
@@ -40,7 +40,6 @@ class AuthService:
         email: Optional[str] = None,
         expires_delta: Optional[timedelta] = None,
     ) -> str:
-        """Create a JWT access token containing user id and email."""
         now = datetime.now(timezone.utc)
         expire = now + (
             expires_delta
@@ -52,11 +51,13 @@ class AuthService:
             "email": email,
             "iat": now,
             "exp": expire,
+            "iss": self.settings.ISSUER,
+            "aud": self.settings.AUDIENCE,
         }
         token = jwt.encode(
             payload,
             self.settings.SECRET_KEY,
-            algorithm=self.settings.JWT_ALGORITHM,
+            algorithm=self.settings.JWT_ALGORITHM
         )
         return token
 
@@ -88,4 +89,44 @@ class AuthService:
         access_token = self.create_access_token(user_id=user.id, email=user.email)
         refresh_token_record = await self.create_refresh_token(user_id=user.id)
         return access_token, refresh_token_record.token
+    
+    def set_cookies(self, response: Response, access_token: str, refresh_token: str):
+        response.set_cookie(
+            key="access_token",
+            value=access_token,
+            httponly=True,
+            #secure=True,
+            samesite="Strict",
+            max_age=self.settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+        )
+        
+        response.set_cookie(
+            key="refresh_token",
+            value=refresh_token,
+            httponly=True,
+            #secure=True,
+            samesite="Strict",
+            max_age=self.settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
+        )
+
+    def verify_access_token(self, token: str):
+        try:
+            payload = jwt.decode(
+                token,
+                self.settings.SECRET_KEY,
+                algorithms=[self.settings.JWT_ALGORITHM],
+                # Enforce and verify specific claims:
+                options={"verify_signature": True, "verify_exp": True},
+                issuer=self.settings.ISSUER,
+                audience=self.settings.AUDIENCE,
+            )
+            return payload
+        except jwt.ExpiredSignatureError:
+            raise HTTPException(status_code=401, detail="Token has expired")
+        except jwt.InvalidIssuerError:
+            raise HTTPException(status_code=401, detail="Invalid token issuer")
+        except jwt.InvalidAudienceError:
+            raise HTTPException(status_code=401, detail="Invalid token audience")
+        except jwt.PyJWTError:
+            raise HTTPException(status_code=401, detail="Could not validate credentials")
 

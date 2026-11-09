@@ -49,7 +49,17 @@ async def seed_mock_users() -> None:
             print("Mock users seeded successfully.")
         else:
             print("Mock users already exist in the database. Skipping seeding.")
+                        
 # create tables and run migrations 
 async def setup_local_database():
-    await setup_database()
-    await seed_mock_users()       
+    try:
+        print("Running migrations...")
+        await setup_database()
+    except Exception:
+        raise
+
+    try:
+        print("Seeding users...")
+        await seed_mock_users()
+    except Exception:
+        raise  # Re-raise     
